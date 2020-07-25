@@ -1,72 +1,67 @@
 /// functions that takes only one argument will be found here
+use std::collections::{BTreeMap, HashMap, HashSet};
+use crate::generic_types::{Input, OrdFloat, Num};
 
-use std::collections::{
-    HashMap,
-    HashSet,
-    BTreeMap
-};
-
-use crate::generic_types::{
-    NotFloat,
-    Input,
-    Num
-};
-
-
+/// sorts floating point numbers without calling `partial_cmp`  
+/// algorithm will first compare the integer part of the number then compare the fractional part if the integer part is equal 
+/// fractional part of f64 will be converted into integer
 pub fn sort_float(input: &Input) -> Vec<Num> {
-    let mut v = Vec::with_capacity(input.len());
-    input.iter().for_each(|e | v.push(NotFloat::from(*e)));
-    v.sort();
-    v.iter()
-        .map(|e| f64::from(*e))
-        .collect::<Vec<f64>>()
+    let sorted = {
+        let mut v = Vec::with_capacity(input.len());
+        input.iter().for_each(|e| v.push(OrdFloat(*e)));
+        v.sort();
+        v
+    };
+    let mut stack = Vec::with_capacity(input.len());
+    
+    for i in sorted.iter() {
+        stack.push(f64::from(*i));
+    }
+    stack
 }
-
-/// assumption
-/// all functions assumes that given data is sorted
 
 /// calculates the sum of the input
 pub fn sum(input: &Input) -> Num {
     input.iter().fold(0 as Num, |acc, n| acc + n)
 }
 
-/// calculates the median of the input
-pub fn median(input: &Input) -> Num {   
+/// calculates the median of the input.
+/// Input must be sorted or it will yeild a wrong result
+pub fn median(input: &Input) -> Num {
     let half = input.len() / 2;
-    let median = if half % 2 == 1 {
-        let mut skipper = input.iter().skip(half);
-        let mut n = if let Some(e) = skipper.next() {
-            *e
-        } else {
-            unreachable!("")
-        };
-        if let Some(e) = skipper.next() {
-            n += *e
-        };
-
-        n / 2 as Num
+    let mut iter = input.iter();
+    let n = if let Some(e) = iter.nth(half) {
+        *e
     } else {
-        *input.iter().skip(half).next().unwrap()
+        unreachable!("")
     };
 
-    median
+    if half % 2 == 1 {
+        if let Some(e) = iter.next() {
+            (n + *e) / 2 as Num
+        } else {
+            n
+        }
+    } else {
+        n
+    }
 }
 
 /// find the value that is most frequently seen in the input
 /// first value in the tuple is the number of times that the value is observed
-/// second value is the keys that are observed 
-pub fn mode(input: &Input) -> (usize, HashSet<NotFloat>) {
+/// second value is the keys that are observed
+pub fn mode(input: &Input) -> (usize, HashSet<OrdFloat>) {
     let mut max = 0;
     let mut set = HashSet::new();
 
     let mut map = HashMap::new();
     input.iter().for_each(|i| {
-        let i = NotFloat::from(*i);
+        let i = OrdFloat(*i);
         map.entry(i).or_insert(0 as usize);
 
         let count = map.get_mut(&i).unwrap();
         *count += 1;
-        
+
         let count_now = *count;
 
         if max == count_now {
@@ -85,16 +80,18 @@ pub fn mode(input: &Input) -> (usize, HashSet<NotFloat>) {
     (freq, set)
 }
 
-/// counts how many times the each value appears within the given input
-pub fn frequency_distribution(input: &Input) -> BTreeMap<NotFloat, Num> {
+/// computes frequency distribution of an input
+/// key is a class and value is the frequency
+/// frequency is represented with f64 but this is becase the function is used in calculating probability distribution as well.
+pub fn frequency_distribution(input: &Input) -> BTreeMap<OrdFloat, Num> {
     let mut map = BTreeMap::new();
 
     input.iter().for_each(|i| {
-        let i = NotFloat::from(*i);
+        let i = OrdFloat(*i);
         match map.get_mut(&i) {
             Some(count) => *count += 1.,
             None => {
-                map.insert(i, 1 as Num);
+                map.insert(i, 1.);
             }
         };
     });
@@ -102,78 +99,80 @@ pub fn frequency_distribution(input: &Input) -> BTreeMap<NotFloat, Num> {
     map
 }
 
-/// divides each value with length of given input.
-pub fn probability_distribution(input: &Input) -> BTreeMap<NotFloat, Num> {
+/// computes probability distribution of an input
+/// key is a class and value is the probability
+pub fn probability_distribution(input: &Input) -> BTreeMap<OrdFloat, Num> {
     let f_len = input.len() as Num;
     let mut tree = frequency_distribution(input);
     tree.iter_mut().for_each(|(_k, v)| *v /= f_len);
     tree
 }
 
+/// returns the biggest number in input
 pub fn max(input: &Input) -> Num {
-    input.iter().fold(0 as Num, |acc, n| {
-        if &acc > n {
-            acc
-        } else {
-            *n
-        }
-    })
+    input
+        .iter()
+        .fold(0 as Num, |acc, n| if &acc > n { acc } else { *n })
 }
 
+/// returns the smallest number in input
 pub fn min(input: &Input) -> Num {
-    input.iter().fold(0 as Num, |acc, n| {
-        if &acc < n {
-            acc
-        } else {
-            *n
-        }
-    })
+    input
+        .iter()
+        .fold(0 as Num, |acc, n| if &acc < n { acc } else { *n })
 }
 
+/// returns a sum of input divided with the length
 pub fn mean(input: &Input) -> Num {
     let sum = input.iter().fold(0 as Num, |acc, n| acc + n);
     sum / input.len() as Num
 }
 
+
 pub fn geometric_mean(input: &Input) -> Num {
     let num_one = 1 as Num;
     let num_zero = 0 as Num;
-    let p = input.iter().fold(num_zero, |acc, n| {
-        if acc == num_zero {
-            *n
-        } else {
-            acc * *n
+
+    if input.len() > 0 {
+        return 0.;
+    }
+
+    let mut iter = input.iter();
+    let mut acc = *iter.next().unwrap();
+    for n in input {
+        if *n == num_zero {
+            acc = 0.;
+            break;
         }
-    });
+        acc *= *n
+    }
 
     let thing = num_one / input.len() as Num;
-    p.powf(thing)
+    acc.powf(thing)
 }
 
 pub fn harmonic_mean(input: &Input) -> Num {
-    let p = input
-        .iter()
-        .fold(0 as Num, |acc, n| acc + ( 1 as Num / n));
+    let p = input.iter().fold(0 as Num, |acc, n| acc + (1 as Num / n));
 
     input.len() as Num / p
 }
 
 pub fn population_variance(input: &Input) -> Num {
     let avg = mean(input);
-    let var = input.iter().fold(0 as Num, |acc, n| {
-        acc + ((n - avg).powi(2))
-    });
+    let var = input
+        .iter()
+        .fold(0 as Num, |acc, n| acc + ((n - avg).powi(2)));
 
     var / input.len() as Num
 }
 
 pub fn sample_variance(input: &Input) -> Num {
     let avg = mean(input);
-    let var = input.iter().fold(0 as Num, |acc, n| {
-        acc + ((n - avg).powi(2))
-    });
+    let var = input
+        .iter()
+        .fold(0 as Num, |acc, n| acc + ((n - avg).powi(2)));
 
-    (var / ((input.len()-1) as Num)).sqrt()
+    (var / ((input.len() - 1) as Num)).sqrt()
 }
 
 pub fn cumulative_sum(input: &Input) -> Vec<Num> {
@@ -192,7 +191,7 @@ pub fn standard_deviation_population(input: &Input) -> Num {
     population_variance(input).powf(0.5)
 }
 
-pub fn standard_deviation_sample(input: &Input) -> Num { 
+pub fn standard_deviation_sample(input: &Input) -> Num {
     sample_variance(input).powf(0.5)
 }
 
@@ -223,10 +222,10 @@ pub fn median_absolute_deviaiton(input: &Input) -> Num {
 pub mod percentile {
     use super::*;
     use std::ops::RangeInclusive;
-    
+
     fn percentile_averageout(input: &Input, index: Num, whole: Num) -> Num {
         let weight = index - whole;
-        
+
         let c1 = input[whole as usize] * (1 as Num - weight);
         let c2 = input[(whole as usize) - 1] * (weight);
 
@@ -234,14 +233,10 @@ pub mod percentile {
     }
 
     pub fn nearest_rank(input: &Input, percent: Num) -> RangeInclusive<usize> {
-        let ordinal_rank = (
-            input.len() as Num 
-            * 
-            (percent / 100 as Num).round()
-        ) as usize;
-        0..=(ordinal_rank+1)
+        let ordinal_rank = (input.len() as Num * (percent / 100 as Num).round()) as usize;
+        0..=(ordinal_rank + 1)
     }
-    
+
     pub fn quartile(input: &Input, percent: Num) -> Num {
         let percentage = (input.len() as Num * percent) / 100 as Num;
         let rounded = percentage.round();
@@ -254,7 +249,6 @@ pub mod percentile {
             (input[idx] * weight) + (input[idx + 1] * percentage.fract())
         }
     }
-
 }
 
 pub fn entropy(input: &Input) -> Num {
@@ -292,9 +286,9 @@ pub fn sigmoid(input: &Input) -> Vec<Num> {
 pub fn soft_max(input: &Input) -> Vec<Num> {
     let max_value = max(input);
 
-    let sum = input.iter().fold(0 as Num, |acc, n| {
-        acc + (*n - max_value).exp()
-    });
+    let sum = input
+        .iter()
+        .fold(0 as Num, |acc, n| acc + (*n - max_value).exp());
 
     let mut vec = Vec::with_capacity(input.len());
     for i in input.iter() {
@@ -308,7 +302,7 @@ pub fn soft_max(input: &Input) -> Vec<Num> {
 pub struct Quantile {
     q1: Num,
     q2: Num,
-    q3: Num
+    q3: Num,
 }
 
 impl Quantile {
@@ -349,7 +343,7 @@ pub struct Outliers {
     pub lif: Num,
     pub uif: Num,
     pub lof: Num,
-    pub uof: Num
+    pub uof: Num,
 }
 
 pub fn quartile_outliers(input: &Input, q: impl Into<Option<Quantile>>) -> Outliers {
@@ -365,7 +359,7 @@ pub fn quartile_outliers(input: &Input, q: impl Into<Option<Quantile>>) -> Outli
     let lof = q.q1 - three;
     let uof = q.q3 + three;
 
-    let cap = input.len()/3;
+    let cap = input.len() / 3;
     let mut extreme = Vec::with_capacity(cap);
     let mut mild = Vec::with_capacity(cap);
     for i in input.iter() {
@@ -384,24 +378,19 @@ pub fn quartile_outliers(input: &Input, q: impl Into<Option<Quantile>>) -> Outli
         lif,
         uif,
         lof,
-        uof
+        uof,
     }
 }
 
 pub fn quantile(input: &Input) -> Quantile {
-    let f_len = input.len() as Num;
-    
-    let (range_q1, range_q3) = if f_len % 2 as Num == 0 as Num {
-        let half = input.len() / 2;
-        (0..half, half..input.len())
-    } else {
-        let half = (input.len()-1) / 2;
-        (0..half, (half+1)..input.len())
-    };
+    let ranges = [input.len() / 4, input.len() / 2, 3*(input.len() / 4)];
+    let q1 = input[input.len() / 4];
+    let q2 = input[input.len() / 2];
+    let q3 = input[3*(input.len() / 4)];
 
-    let q1 = median(&input[range_q1]);
-    let q2 = median(input);
-    let q3 = median(&input[range_q3]);
-
-    Quantile {q1, q2, q3}
+    Quantile { 
+        q1,
+        q2,
+        q3
+    }
 }
