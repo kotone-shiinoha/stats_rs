@@ -14,8 +14,6 @@ Functions like `median` or `linear_regression` will return could return a wrong 
 `Ord` trait is crucial for some of the algorithm used in the library, however, f64 doesn't have it implemented. 
 Thus, the library will use `OrdFloat` when its necessary
 
-## functions
-
 # Todo
 - better document
 - better code organization
