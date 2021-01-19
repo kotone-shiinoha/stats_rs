@@ -5,6 +5,9 @@ stats_rs is a statistics library for rust lang.
 No. Not every functions are tested.
 
 # FYI
+## document
+create the document with `cargo docs`
+
 ## No Validation/Sorting
 Although this library is inspired by go lang's stats library, functions in this library will neither validate nor make a sorted copy of arguments that you pass.
 
